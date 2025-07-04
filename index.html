@@ -55,6 +55,18 @@
                         <div id="cvTrendChart"></div>
                     </div>
                 </div>
+                
+                <!-- Email Monitoring Status -->
+                <div class="monitoring-panel">
+                    <h3>Email Monitoring Activity</h3>
+                    <div class="monitoring-controls">
+                        <button class="btn btn-sm" onclick="refreshEmailActivities()">Refresh</button>
+                        <span class="activity-count" id="activityCount">0 activities</span>
+                    </div>
+                    <div id="emailActivity" class="activity-log">
+                        <p class="no-activity">No email activity yet</p>
+                    </div>
+                </div>
             </div>
 
             <div id="jobs" class="tab-content">
@@ -73,6 +85,7 @@
                                 <th>Location</th>
                                 <th>Hiring Manager</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="jobsTableBody"></tbody>
@@ -96,6 +109,7 @@
                                 <th>Project</th>
                                 <th>Status</th>
                                 <th>Interview Date</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="cvsTableBody"></tbody>
@@ -107,8 +121,13 @@
                 <h2>AI Assistant</h2>
                 <div class="ai-interface">
                     <div class="ai-chat-history" id="aiChatHistory">
-                        <div class="ai-message">
-                            <strong>AI Assistant:</strong> Hello! I can help you manage recruitment data.
+                        <div class="ai-message assistant">
+                            <strong>AI Assistant:</strong> Hello! I can help you manage recruitment data. Try commands like:
+                            <ul>
+                                <li>"Add John Doe as candidate for JOB-123"</li>
+                                <li>"Update CV-456 status to Interview Scheduled"</li>
+                                <li>"Show all candidates for Project Alpha"</li>
+                            </ul>
                         </div>
                     </div>
                     <div class="ai-input-area">
@@ -135,6 +154,7 @@
                             <input type="text" id="hmName" placeholder="Name" class="form-input">
                             <input type="email" id="hmEmail" placeholder="Email" class="form-input">
                             <button class="btn btn-primary" onclick="addHiringManager()">Add</button>
+                            <button class="btn btn-secondary" onclick="showBulkHMModal()">Bulk Import</button>
                         </div>
                         <div id="hmList" class="item-list"></div>
                     </div>
@@ -143,8 +163,17 @@
                         <div class="form-group">
                             <input type="text" id="projectName" placeholder="Project Name" class="form-input">
                             <button class="btn btn-primary" onclick="addProject()">Add</button>
+                            <button class="btn btn-secondary" onclick="showBulkProjectModal()">Bulk Import</button>
                         </div>
                         <div id="projectList" class="item-list"></div>
+                    </div>
+                    <div class="config-section">
+                        <h3>Candidates Database</h3>
+                        <div class="form-group">
+                            <button class="btn btn-primary" onclick="showAddCandidateModal()">Add Single Candidate</button>
+                            <button class="btn btn-secondary" onclick="showBulkCandidateModal()">Bulk Import</button>
+                        </div>
+                        <div id="candidateList" class="item-list"></div>
                     </div>
                 </div>
             </div>
@@ -178,6 +207,22 @@
                             <option value="">Select Hiring Manager</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>Max Budgeted Salary:</label>
+                        <input type="number" name="Max Budgeted Salary">
+                    </div>
+                    <div class="form-group">
+                        <label>Business Line:</label>
+                        <input type="text" name="Business Line">
+                    </div>
+                    <div class="form-group">
+                        <label>Service Line:</label>
+                        <input type="text" name="Service Line">
+                    </div>
+                    <div class="form-group">
+                        <label>TA Partner:</label>
+                        <input type="text" name="TA Partner">
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Add Job</button>
             </form>
@@ -205,128 +250,135 @@
                         <input type="email" name="Email">
                     </div>
                     <div class="form-group">
+                        <label>Mobile:</label>
+                        <input type="tel" name="Mobile">
+                    </div>
+                    <div class="form-group">
                         <label>CV Source:</label>
                         <select name="CV Source">
                             <option value="LinkedIn">LinkedIn</option>
                             <option value="Referral">Referral</option>
                             <option value="Job Board">Job Board</option>
+                            <option value="Direct Application">Direct Application</option>
+                            <option value="Internal">Internal</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Current Location:</label>
+                        <input type="text" name="Current Location">
+                    </div>
+                    <div class="form-group">
+                        <label>Notice Period:</label>
+                        <input type="text" name="Notice Period">
+                    </div>
+                    <div class="form-group">
+                        <label>Nationality:</label>
+                        <input type="text" name="Nationality">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Add CV</button>
             </form>
         </div>
     </div>
-    <!-- Replace the Email Monitoring Status section in your HTML with this enhanced version -->
-
-<!-- Email Monitoring Status -->
-<div class="monitoring-panel">
-    <h3>Email Monitoring Activity</h3>
-    <div class="monitoring-controls">
-        <button class="btn btn-sm" onclick="refreshEmailActivities()">Refresh</button>
-        <span class="activity-count" id="activityCount">0 activities</span>
-    </div>
-    <div id="emailActivity" class="activity-log">
-        <p class="no-activity">No email activity yet</p>
-    </div>
-</div>
-!-- Bulk Hiring Managers Modal -->
-<div id="bulkHMModal" class="modal">
-    <div class="modal-content modal-large">
-        <span class="close" onclick="closeModal('bulkHMModal')">&times;</span>
-        <h2>Bulk Import Hiring Managers</h2>
-        <div class="bulk-import-instructions">
-            <p>Enter hiring managers in the format: <strong>Name, Email</strong> (one per line)</p>
-            <p>Example:</p>
-            <pre>John Doe, john.doe@company.com
+    
+    <!-- Bulk Hiring Managers Modal -->
+    <div id="bulkHMModal" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close" onclick="closeModal('bulkHMModal')">&times;</span>
+            <h2>Bulk Import Hiring Managers</h2>
+            <div class="bulk-import-instructions">
+                <p>Enter hiring managers in the format: <strong>Name, Email</strong> (one per line)</p>
+                <p>Example:</p>
+                <pre>John Doe, john.doe@company.com
 Jane Smith, jane.smith@company.com
 Bob Johnson, bob.johnson@company.com</pre>
-        </div>
-        <textarea id="bulkHMData" class="bulk-textarea" placeholder="Paste hiring managers data here..." rows="10"></textarea>
-        <div class="modal-actions">
-            <button class="btn btn-primary" onclick="processBulkHM()">Import Hiring Managers</button>
-            <button class="btn btn-secondary" onclick="closeModal('bulkHMModal')">Cancel</button>
+            </div>
+            <textarea id="bulkHMData" class="bulk-textarea" placeholder="Paste hiring managers data here..." rows="10"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="processBulkHM()">Import Hiring Managers</button>
+                <button class="btn btn-secondary" onclick="closeModal('bulkHMModal')">Cancel</button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Bulk Projects Modal -->
-<div id="bulkProjectModal" class="modal">
-    <div class="modal-content modal-large">
-        <span class="close" onclick="closeModal('bulkProjectModal')">&times;</span>
-        <h2>Bulk Import Projects</h2>
-        <div class="bulk-import-instructions">
-            <p>Enter project names (one per line)</p>
-            <p>Example:</p>
-            <pre>Project Alpha
+    <!-- Bulk Projects Modal -->
+    <div id="bulkProjectModal" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close" onclick="closeModal('bulkProjectModal')">&times;</span>
+            <h2>Bulk Import Projects</h2>
+            <div class="bulk-import-instructions">
+                <p>Enter project names (one per line)</p>
+                <p>Example:</p>
+                <pre>Project Alpha
 Project Beta
 Website Redesign
 Mobile App Development</pre>
-        </div>
-        <textarea id="bulkProjectData" class="bulk-textarea" placeholder="Paste project names here..." rows="10"></textarea>
-        <div class="modal-actions">
-            <button class="btn btn-primary" onclick="processBulkProjects()">Import Projects</button>
-            <button class="btn btn-secondary" onclick="closeModal('bulkProjectModal')">Cancel</button>
+            </div>
+            <textarea id="bulkProjectData" class="bulk-textarea" placeholder="Paste project names here..." rows="10"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="processBulkProjects()">Import Projects</button>
+                <button class="btn btn-secondary" onclick="closeModal('bulkProjectModal')">Cancel</button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Bulk Candidates Modal -->
-<div id="bulkCandidateModal" class="modal">
-    <div class="modal-content modal-large">
-        <span class="close" onclick="closeModal('bulkCandidateModal')">&times;</span>
-        <h2>Bulk Import Candidates</h2>
-        <div class="bulk-import-instructions">
-            <p>Enter candidates in the format: <strong>Name, Email, Mobile, Location, Nationality, Notice Period</strong></p>
-            <p>Leave fields empty if not available. Example:</p>
-            <pre>John Doe, john.doe@email.com, +1234567890, Dubai, UAE, 1 month
+    <!-- Bulk Candidates Modal -->
+    <div id="bulkCandidateModal" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close" onclick="closeModal('bulkCandidateModal')">&times;</span>
+            <h2>Bulk Import Candidates</h2>
+            <div class="bulk-import-instructions">
+                <p>Enter candidates in the format: <strong>Name, Email, Mobile, Location, Nationality, Notice Period</strong></p>
+                <p>Leave fields empty if not available. Example:</p>
+                <pre>John Doe, john.doe@email.com, +1234567890, Dubai, UAE, 1 month
 Jane Smith, jane@email.com, +9876543210, London, UK, 2 weeks
 Bob Johnson, , +1112223333, New York, USA, Immediate</pre>
-        </div>
-        <textarea id="bulkCandidateData" class="bulk-textarea" placeholder="Paste candidate data here..." rows="10"></textarea>
-        <div class="modal-actions">
-            <button class="btn btn-primary" onclick="processBulkCandidates()">Import Candidates</button>
-            <button class="btn btn-secondary" onclick="closeModal('bulkCandidateModal')">Cancel</button>
-        </div>
-    </div>
-</div>
-
-<!-- Single Candidate Modal -->
-<div id="addCandidateModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal('addCandidateModal')">&times;</span>
-        <h2>Add New Candidate to Database</h2>
-        <form id="addCandidateForm">
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Name:</label>
-                    <input type="text" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label>Email:</label>
-                    <input type="email" name="email">
-                </div>
-                <div class="form-group">
-                    <label>Mobile:</label>
-                    <input type="tel" name="mobile">
-                </div>
-                <div class="form-group">
-                    <label>Current Location:</label>
-                    <input type="text" name="current_location">
-                </div>
-                <div class="form-group">
-                    <label>Nationality:</label>
-                    <input type="text" name="nationality">
-                </div>
-                <div class="form-group">
-                    <label>Notice Period:</label>
-                    <input type="text" name="notice_period" placeholder="e.g., 1 month, 2 weeks">
-                </div>
             </div>
-            <button type="submit" class="btn btn-primary">Add Candidate</button>
-        </form>
+            <textarea id="bulkCandidateData" class="bulk-textarea" placeholder="Paste candidate data here..." rows="10"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="processBulkCandidates()">Import Candidates</button>
+                <button class="btn btn-secondary" onclick="closeModal('bulkCandidateModal')">Cancel</button>
+            </div>
+        </div>
     </div>
-</div>
+
+    <!-- Single Candidate Modal -->
+    <div id="addCandidateModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addCandidateModal')">&times;</span>
+            <h2>Add New Candidate to Database</h2>
+            <form id="addCandidateForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label>Mobile:</label>
+                        <input type="tel" name="mobile">
+                    </div>
+                    <div class="form-group">
+                        <label>Current Location:</label>
+                        <input type="text" name="current_location">
+                    </div>
+                    <div class="form-group">
+                        <label>Nationality:</label>
+                        <input type="text" name="nationality">
+                    </div>
+                    <div class="form-group">
+                        <label>Notice Period:</label>
+                        <input type="text" name="notice_period" placeholder="e.g., 1 month, 2 weeks">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Candidate</button>
+            </form>
+        </div>
+    </div>
+
     <script src="/static/js/app.js"></script>
 </body>
 </html>

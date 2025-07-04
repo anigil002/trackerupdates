@@ -85,7 +85,7 @@ class EmailMonitor:
                         for i in range(inbox_count + 1, current_inbox_count + 1):
                             try:
                                 message = inbox.Items[i]
-                                self.add_activity("inbox", f"New email received", message.Subject)
+                                self.add_activity("inbox", f"New email from {message.SenderName}", message.Subject)
                                 self._process_email(message, "Inbox")
                             except Exception as e:
                                 self.add_activity("error", f"Error processing inbox email: {str(e)}")
@@ -98,7 +98,9 @@ class EmailMonitor:
                         for i in range(sent_count + 1, current_sent_count + 1):
                             try:
                                 message = sent.Items[i]
-                                self.add_activity("sent", f"New email sent", message.Subject)
+                                # Get first recipient name
+                                to_name = message.Recipients[1].Name if message.Recipients.Count > 0 else "Unknown"
+                                self.add_activity("sent", f"Email sent to {to_name}", message.Subject)
                                 self._process_email(message, "Sent")
                             except Exception as e:
                                 self.add_activity("error", f"Error processing sent email: {str(e)}")
@@ -122,6 +124,7 @@ class EmailMonitor:
                 'folder': folder,
                 'subject': message.Subject,
                 'sender': message.SenderEmailAddress,
+                'sender_name': message.SenderName,
                 'recipients': self._get_recipients(message),
                 'body': message.Body,
                 'received_time': message.ReceivedTime,
@@ -131,19 +134,58 @@ class EmailMonitor:
             # Check if recruitment related
             if self._is_recruitment_email(email_data):
                 self.email_queue.put(email_data)
-                self.add_activity("recruitment", f"Recruitment email detected", email_data['subject'])
+                
+                # Determine what type of recruitment email
+                recruitment_type = self._determine_recruitment_type(email_data)
+                self.add_activity("recruitment", f"Recruitment email detected: {recruitment_type}", email_data['subject'])
                 
                 # Process with AI if processor available
                 if self.ai_processor:
-                    self.add_activity("ai", f"Processing with AI", email_data['subject'])
+                    self.add_activity("ai", f"Starting AI analysis for {recruitment_type}", email_data['subject'])
                     result = self.ai_processor.process_email(email_data)
                     if result:
-                        self.add_activity("ai", f"AI processing completed", email_data['subject'])
+                        # Add specific processing results
+                        if result.get('candidate_name'):
+                            self.add_activity("ai", f"Extracted candidate: {result['candidate_name']}", email_data['subject'])
+                        if result.get('position'):
+                            self.add_activity("ai", f"Position identified: {result['position']}", email_data['subject'])
+                        if result.get('interview_date'):
+                            self.add_activity("ai", f"Interview scheduled: {result['interview_date']}", email_data['subject'])
+                        if result.get('action_taken'):
+                            self.add_activity("ai", f"Action: {result['action_taken']}", email_data['subject'])
+                        else:
+                            self.add_activity("ai", "AI processing completed", email_data['subject'])
+                    else:
+                        self.add_activity("ai", "AI processing completed - no action needed", email_data['subject'])
             else:
-                self.add_activity("skip", f"Non-recruitment email skipped", email_data['subject'])
+                # Show why it was skipped
+                self.add_activity("skip", f"Non-recruitment email (no keywords matched)", email_data['subject'][:50] + "...")
                     
         except Exception as e:
             self.add_activity("error", f"Error processing email: {str(e)}")
+    
+    def _determine_recruitment_type(self, email_data):
+        """Determine the type of recruitment email"""
+        text = f"{email_data['subject']} {email_data['body']}".lower()
+        
+        if any(word in text for word in ['cv', 'resume', 'profile', 'candidate']):
+            if 'attached' in text or email_data['attachments']:
+                return "CV Submission"
+            return "Candidate Information"
+        elif 'interview' in text:
+            if any(word in text for word in ['schedule', 'confirm', 'arrange']):
+                return "Interview Scheduling"
+            elif any(word in text for word in ['feedback', 'result', 'decision']):
+                return "Interview Feedback"
+            return "Interview Related"
+        elif 'offer' in text:
+            return "Job Offer"
+        elif 'feedback' in text:
+            return "Feedback"
+        elif any(word in text for word in ['job', 'position', 'vacancy', 'opening']):
+            return "Job Posting"
+        else:
+            return "General Recruitment"
     
     def _get_recipients(self, message):
         """Extract email recipients"""
